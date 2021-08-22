@@ -5,7 +5,7 @@ typedef SendErrorFunction = Function(Object? data);
 typedef MessageHandler = Function(dynamic data);
 typedef MainMessageHandler = Function(dynamic data, SendPort isolateSendPort);
 typedef IsolateMessageHandler = Function(
-    dynamic data, SendPort mainSendPort, SendErrorFunction sendError);
+    dynamic data, SendPort mainSendPort, SendErrorFunction onSendError);
 
 /// An abstraction of the [Isolate] to make it easier to use without loosing
 /// the control of it's capabilities.
@@ -84,20 +84,23 @@ class Worker {
     assert(isInitialized == false);
     if (isInitialized) return;
 
+    /// The port to communicate with the main thread
     final mainReceivePort = ReceivePort();
     final errorPort = _initializeAndListen(errorHandler);
     final exitPort = _initializeAndListen(exitHandler);
 
     _isolate = await Isolate.spawn(
       _isolateInitializer,
-      _IsolateInitializer(
+      _IsolateInitializerParams(
           mainReceivePort.sendPort, errorPort?.sendPort, isolateHandler),
       onError: errorPort?.sendPort,
       onExit: exitPort?.sendPort,
     );
 
-    // Start to listen after isolate por being sent
+    /// Listen the main port to handle messages coming from the isolate
     mainReceivePort.listen((message) {
+      /// The first message received from the isolate will be the isolate port,
+      /// the port is saved and the worker is ready to work
       if (message is SendPort) {
         _isolateSendPort = message;
         _completer.complete();
@@ -130,23 +133,28 @@ class Worker {
   /// Responsible for initializing the isolate, send the sendPort to the main,
   /// and call the [isolateHandler] provided in the [init].
   static Future<void> _isolateInitializer(
-      _IsolateInitializer initializer) async {
+    _IsolateInitializerParams params,
+  ) async {
+    /// Create the port to communicate with the isolate
     var isolateReceiverPort = ReceivePort();
 
-    initializer.mainSendPort.send(isolateReceiverPort.sendPort);
+    /// Send the isolate port to the main thread using the port in the params
+    params.mainSendPort.send(isolateReceiverPort.sendPort);
 
+    /// Listen the isolate port to handle messages coming from the main
     await for (var data in isolateReceiverPort) {
-      initializer.isolateHandler(
+      params.isolateHandler(
         data,
-        initializer.mainSendPort,
-        initializer.errorSendPort?.send ?? (_) {},
+        params.mainSendPort,
+        params.errorSendPort?.send ?? (_) {},
       );
     }
   }
 }
 
-class _IsolateInitializer {
-  _IsolateInitializer(
+/// The parameters used to initiate the isolate internally
+class _IsolateInitializerParams {
+  _IsolateInitializerParams(
       this.mainSendPort, this.errorSendPort, this.isolateHandler);
 
   final SendPort mainSendPort;
