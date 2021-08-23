@@ -1,6 +1,6 @@
 name: easy_isolate
-description: An abstraction of the Isolate to make it easier to use, and with a more concise api
-version: 0.0.1
+description: An abstraction of the isolate providing an easy way to work with different threads
+version: 0.0.2+2
 homepage: https://www.britto.dev
 
 environment:
