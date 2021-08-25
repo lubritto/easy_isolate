@@ -1,7 +1,5 @@
-## 0.0.2
+## 1.0.0
 
-* Doc updates
-
-## 0.0.1
-
-* Initial implementation of the [Worker]
+* Implementation of the [Worker]
+* Add docs
+* Add example
