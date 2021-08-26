@@ -228,5 +228,11 @@ understand how it works in practice. See the code [here](https://github.com/lubr
 
 ![macOS](https://github.com/lubritto/easy_isolate/blob/main/assets/gifs/example.gif)
 
-Feels free to open issues or add suggestions and, if you are happy using the plugin and would like to have more plugins
-like this, help me with the sponsor button.
+### Contributions
+
+If you liked the package and would like to contribute feels free to:
+   - Open issues for suggestions or bugs [here](https://github.com/lubritto/easy_isolate/issues)
+   - Sponsor the repo using the button on the top of the [github page](https://github.com/lubritto/easy_isolate/)
+   - Leave your like on the [pub page](https://pub.dev/packages/easy_isolate) or a star in the [github page](https://github.com/lubritto/easy_isolate/)
+   - Open PR's for new features
+   - Share with your friends
