@@ -3,7 +3,16 @@
 
 An abstraction of the isolate providing an easy way to work with different threads
 
-### How it works
+## Features
+ - [Worker](#worker)
+ - [Parallel](#parallel) 
+    - [Run](#parallel-run) - Executes a function in a different thread.
+    - [Map](#parallel-map) -  Works like a map but each value will be adapted in a different thread
+    - [Foreach](#parallel-foreach) - Works like a for in loop but each value will be executed in a different thread
+
+## How it works
+
+### Worker <a id="worker"></a>
 
 A worker is responsible for 1 new thread (isolate). Everything you need to do to start a new thread is initiate
 a new worker and call the `init` function providing 2 parameters, a MainMessageHandler and an IsolateMessageHandler.
@@ -143,6 +152,72 @@ void exitHandler(dynamic data) {
 > prevent this is using the `runGuardedZone` or wrapping the operations with try catchs.
 
 Congratulation, now you are ready to use the worker in your project.
+
+### Parallel <a id="parallel"></a>
+
+The Parallel class provides a set of ready to use methods including:
+
+#### Run <a id="parallel-run"></a>
+
+Executes a function in a different thread.
+
+The `run` method will run the `handler` function provided in a separated thread, returning a value or not. There is 
+also an `entryValue` parameter that can be used inside the `handler`.
+
+Example:
+
+```dart
+Future main() async {
+  final result = await Parallel.run(isEven, entryValue: 1);
+  print(result);
+}
+
+// Top-level function (or static)
+bool isEven({int? item}) {
+  return item != null && item % 2 == 0;
+}
+```
+
+#### Map <a id="parallel-map"></a>
+
+Executes a map function in a different thread.
+
+The `map` method works like a traditional mapper, iterating through the `values`, adapting with the `handler` function 
+provided in the parameters, and returning a new List with the adapted values.
+
+Example:
+
+```dart
+Future main() async {
+  final result = await Parallel.map([1, 2, 3, 4], intToStringAdapter);
+  print(result); // Should print all the values as a String
+}
+
+// Top-level function (or static)
+String intToStringAdapter(int i) {
+  return i.toString();
+}
+```
+
+#### Foreach <a id="parallel-foreach"></a>
+
+Executes a 'for in' loop function in a different thread.
+
+The `foreach` method works like a traditional 'for in' loop, iterating through the `values`, running the `handler` 
+function on each value provided in the parameters.
+
+Example:
+
+```dart
+Future main() async {
+  await Parallel.foreach(['test'], writeFile);
+}
+
+// Top-level function (or static)
+void writeFile(String name) {
+  File(Directory.systemTemp.path + '/$name').createSync();
+}
+```
 
 ###  Example
 
