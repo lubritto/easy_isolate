@@ -1,7 +1,9 @@
 # Easy Isolate
+[![Flutter](https://img.shields.io/badge/Flutter-%2302569B.svg?style=flat&logo=appveyor&logo=Flutter&logoColor=white)](https://flutter.dev)
 [![pub package](https://img.shields.io/pub/v/easy_isolate.svg)](https://pub.dartlang.org/packages/easy_isolate)
+[![GitHub](https://img.shields.io/badge/github-%23121011.svg?style=flat&logo=github&logoColor=white)](https://github.com/lubritto/easy_isolate)
 
-An abstraction of the isolate providing an easy way to work with different threads
+An abstraction of isolates providing an easy way to work with different threads
 
 ## Features
  - [Worker](#worker)
@@ -9,7 +11,7 @@ An abstraction of the isolate providing an easy way to work with different threa
     - [Run](#parallel-run) - Executes a function in a different thread.
     - [Map](#parallel-map) -  Works like a map but each value will be adapted in a different thread
     - [Foreach](#parallel-foreach) - Works like a for in loop but each value will be executed in a different thread
-
+   
 ## How it works
 
 ### Worker <a id="worker"></a>
