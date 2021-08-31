@@ -42,6 +42,9 @@ class Worker {
   /// Holds the instance of the isolate
   late Isolate _isolate;
 
+  /// Holds the instance of the main thread port for communication
+  late ReceivePort _mainReceivePort;
+
   /// Holds the instance of the isolate open port to send messages
   late SendPort _isolateSendPort;
 
@@ -66,6 +69,9 @@ class Worker {
   /// the message data and the main SendPort as parameters, that can be
   /// used to send messages back to the main thread.
   ///
+  /// - initialMessage: Can be used to start the isolate sending a initial
+  /// message
+  ///
   /// - errorHandler: Receives the error events from the isolate. Tt can be
   /// non handled errors or errors manually sent using the [SendErrorFunction]
   /// inside the isolate handler.
@@ -78,6 +84,7 @@ class Worker {
   Future<void> init(
     MainMessageHandler mainHandler,
     IsolateMessageHandler isolateHandler, {
+    Object? initialMessage = const _NoParameterProvided(),
     MessageHandler? errorHandler,
     MessageHandler? exitHandler,
   }) async {
@@ -85,34 +92,41 @@ class Worker {
     if (isInitialized) return;
 
     /// The port to communicate with the main thread
-    final mainReceivePort = ReceivePort();
+    _mainReceivePort = ReceivePort();
     final errorPort = _initializeAndListen(errorHandler);
     final exitPort = _initializeAndListen(exitHandler);
 
     _isolate = await Isolate.spawn(
       _isolateInitializer,
       _IsolateInitializerParams(
-          mainReceivePort.sendPort, errorPort?.sendPort, isolateHandler),
+          _mainReceivePort.sendPort, errorPort?.sendPort, isolateHandler),
       onError: errorPort?.sendPort,
       onExit: exitPort?.sendPort,
     );
 
     /// Listen the main port to handle messages coming from the isolate
-    mainReceivePort.listen((message) {
+    _mainReceivePort.listen((message) {
       /// The first message received from the isolate will be the isolate port,
       /// the port is saved and the worker is ready to work
       if (message is SendPort) {
         _isolateSendPort = message;
+        if (!(initialMessage is _NoParameterProvided)) {
+          _isolateSendPort.send(initialMessage);
+        }
         _completer.complete();
         return;
       }
       mainHandler(message, _isolateSendPort);
+    }).onDone(() {
+      errorPort?.close();
+      exitPort?.close();
     });
 
     return await _completer.future;
   }
 
   void dispose() {
+    _mainReceivePort.close();
     _isolate.kill();
   }
 
@@ -160,4 +174,8 @@ class _IsolateInitializerParams {
   final SendPort mainSendPort;
   final SendPort? errorSendPort;
   final IsolateMessageHandler isolateHandler;
+}
+
+class _NoParameterProvided {
+  const _NoParameterProvided();
 }

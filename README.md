@@ -42,6 +42,20 @@ main thread.
 >
 > Because of these particularities, the `isolateHandler` should be a top-level function or a static method.
 
+You can use the worker `initialMessage` parameter to start the isolate sending an initial message. When the worker be
+ready, the initial message will be sent to the isolate and received in the isolateHandler.
+
+```dart
+...
+  await worker.init(mainHandler, isolateHandler, initialMessage: 'firstMessage');  
+}
+
+...
+void isolateHandler(dynamic data, SendPort mainSendPort, SendErrorFunction onSendError) {
+  // Event 'firstMessage' received when the worker is ready
+}
+```
+
 Now that you have the worker ready, and with that a new thread running, the next step is understanding how to
 communicate between them.
 

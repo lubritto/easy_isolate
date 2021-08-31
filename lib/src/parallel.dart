@@ -43,11 +43,14 @@ class Parallel {
       {T? entryValue}) async {
     final completer = Completer();
     final worker = Worker();
-    await worker.init((data, _) {
-      completer.complete(data);
-      worker.dispose();
-    }, _isolateHandler);
-    worker.sendMessage(_ParallelRunParams<T, R>(entryValue, handler));
+    await worker.init(
+      (data, _) {
+        completer.complete(data);
+        worker.dispose();
+      },
+      _isolateHandler,
+      initialMessage: _ParallelRunParams<T, R>(entryValue, handler),
+    );
     return await completer.future;
   }
 
@@ -83,12 +86,14 @@ class Parallel {
 
     for (final item in values) {
       final worker = Worker();
-      await worker.init((data, _) {
-        completerList[item]?.complete(data);
-        worker.dispose();
-      }, _isolateHandler);
-
-      worker.sendMessage(_ParallelMapParams(item, handler));
+      await worker.init(
+        (data, _) {
+          completerList[item]?.complete(data);
+          worker.dispose();
+        },
+        _isolateHandler,
+        initialMessage: _ParallelMapParams(item, handler),
+      );
     }
 
     final result = await Future.wait(completerList.values.map((e) => e.future));
@@ -126,12 +131,14 @@ class Parallel {
 
     for (final item in values) {
       final worker = Worker();
-      await worker.init((data, _) {
-        completerList[item]?.complete(null);
-        worker.dispose();
-      }, _isolateHandler);
-
-      worker.sendMessage(_ParallelForeachParams(item, handler));
+      await worker.init(
+        (data, _) {
+          completerList[item]?.complete(null);
+          worker.dispose();
+        },
+        _isolateHandler,
+        initialMessage: _ParallelForeachParams(item, handler),
+      );
     }
 
     await Future.wait(completerList.values.map((e) => e.future));
