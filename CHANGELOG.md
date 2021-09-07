@@ -1,3 +1,7 @@
+## 1.2.1
+
+* Remove flutter dependency
+
 ## 1.2.0
 
 * Close the open ports when the worker when calling dispose
