@@ -1,3 +1,9 @@
+## 1.3.0
+
+* Add a queueMode to the worker
+* Add immediate option when disposing the worker
+* Fix onExit, now is called when the worker is disposing manually
+
 ## 1.2.1 & 1.2.2
 
 * Remove flutter dependency

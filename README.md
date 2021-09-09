@@ -110,6 +110,17 @@ void isolateHandler(dynamic data, SendPort mainSendPort, SendErrorFunction onSen
 > the primitive values. Example: You can instantiate a Car class inside the isolate and send it to the main thread, the
 > object will be copied to another instance with all the primitive values intact.
 
+#### Queue mode
+By default, both handlers will handle all messages without awaiting the last one being processed. If your handlers 
+are asynchronous and needs to be awaited before handling the next message, you can enable the 
+`queueMode`. With this, only one message will be handled by time.
+
+```
+...
+  await worker.init(mainHandler, isolateHandler, queueMode: true);
+...
+```
+
 Now that you know how to start a worker and send messages, this plugin provides more two handlers on the init function,
 the `errorHandler` and `exitHandler`.
 
@@ -166,6 +177,13 @@ void exitHandler(dynamic data) {
 
 > Important note: The isolate automatically closes when unhandled exceptions happens inside the isolate. One way to 
 > prevent this is using the `runGuardedZone` or wrapping the operations with try catchs.
+
+#### Killing the worker
+
+To kill the worker and close the open ports, the `worker.dispose()` should be called. By default, the dispose 
+method will wait until the last message received (before dispose being called), or the current operations inside the 
+isolate being processed to kill the isolate. The immediate option, `worker.dispose(immediate: true)`, can be used to kill the isolate the fast as possible,
+without necessarily awaiting the last message or current operations finishing.
 
 Congratulation, now you are ready to use the worker in your project.
 

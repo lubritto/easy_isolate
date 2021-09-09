@@ -3,8 +3,9 @@ import 'dart:isolate';
 
 typedef SendErrorFunction = Function(Object? data);
 typedef MessageHandler = Function(dynamic data);
-typedef MainMessageHandler = Function(dynamic data, SendPort isolateSendPort);
-typedef IsolateMessageHandler = Function(
+typedef MainMessageHandler = FutureOr Function(
+    dynamic data, SendPort isolateSendPort);
+typedef IsolateMessageHandler = FutureOr Function(
     dynamic data, SendPort mainSendPort, SendErrorFunction onSendError);
 
 /// An abstraction of the [Isolate] to make it easier to use without loosing
@@ -72,6 +73,9 @@ class Worker {
   /// - initialMessage: Can be used to start the isolate sending a initial
   /// message
   ///
+  /// - queueMode: when enabled, the ports await the last event being handled to
+  /// read the next one. By default is false.
+  ///
   /// - errorHandler: Receives the error events from the isolate. Tt can be
   /// non handled errors or errors manually sent using the [SendErrorFunction]
   /// inside the isolate handler.
@@ -85,6 +89,7 @@ class Worker {
     MainMessageHandler mainHandler,
     IsolateMessageHandler isolateHandler, {
     Object? initialMessage = const _NoParameterProvided(),
+    bool queueMode = false,
     MessageHandler? errorHandler,
     MessageHandler? exitHandler,
   }) async {
@@ -99,13 +104,17 @@ class Worker {
     _isolate = await Isolate.spawn(
       _isolateInitializer,
       _IsolateInitializerParams(
-          _mainReceivePort.sendPort, errorPort?.sendPort, isolateHandler),
+        _mainReceivePort.sendPort,
+        errorPort?.sendPort,
+        isolateHandler,
+        queueMode,
+      ),
       onError: errorPort?.sendPort,
       onExit: exitPort?.sendPort,
     );
 
     /// Listen the main port to handle messages coming from the isolate
-    _mainReceivePort.listen((message) {
+    _mainReceivePort.listen((message) async {
       /// The first message received from the isolate will be the isolate port,
       /// the port is saved and the worker is ready to work
       if (message is SendPort) {
@@ -116,8 +125,14 @@ class Worker {
         _completer.complete();
         return;
       }
-      mainHandler(message, _isolateSendPort);
-    }).onDone(() {
+      final handlerFuture = mainHandler(message, _isolateSendPort);
+      if (queueMode) {
+        await handlerFuture;
+      }
+    }).onDone(() async {
+      /// Waits 2 seconds to close the error and exit ports, enabling to receive
+      /// the events when the worker is disposed manually.
+      await Future.delayed(Duration(seconds: 2));
       errorPort?.close();
       exitPort?.close();
     });
@@ -125,9 +140,26 @@ class Worker {
     return await _completer.future;
   }
 
-  void dispose() {
+  /// Responsible for killing the isolate and close the main thread port
+  ///
+  /// The shutdown is performed at different times depending on the priority:
+  ///
+  /// * `immediate = true`: The isolate shuts down as soon as possible.
+  ///     Control messages are handled in order, so all previously sent control
+  ///     events from this isolate will all have been processed.
+  ///     The shutdown should happen no later than if sent with
+  ///     `immediate = false`.
+  ///     It may happen earlier if the system has a way to shut down cleanly
+  ///     at an earlier time, even during the execution of another event.
+  /// * `immediate = false`: The shutdown is scheduled for the next time
+  ///     control returns to the event loop of the receiving isolate,
+  ///     after the current event, and any already scheduled control events,
+  ///     are completed.
+  void dispose({bool immediate = false}) {
     _mainReceivePort.close();
-    _isolate.kill();
+    _isolate.kill(
+      priority: immediate ? Isolate.immediate : Isolate.beforeNextEvent,
+    );
   }
 
   ReceivePort? _initializeAndListen(MessageHandler? handler) {
@@ -157,11 +189,11 @@ class Worker {
 
     /// Listen the isolate port to handle messages coming from the main
     await for (var data in isolateReceiverPort) {
-      params.isolateHandler(
-        data,
-        params.mainSendPort,
-        params.errorSendPort?.send ?? (_) {},
-      );
+      final handlerFuture = params.isolateHandler(
+          data, params.mainSendPort, params.errorSendPort?.send ?? (_) {});
+      if (params.queueMode) {
+        await handlerFuture;
+      }
     }
   }
 }
@@ -169,11 +201,16 @@ class Worker {
 /// The parameters used to initiate the isolate internally
 class _IsolateInitializerParams {
   _IsolateInitializerParams(
-      this.mainSendPort, this.errorSendPort, this.isolateHandler);
+    this.mainSendPort,
+    this.errorSendPort,
+    this.isolateHandler,
+    this.queueMode,
+  );
 
   final SendPort mainSendPort;
   final SendPort? errorSendPort;
   final IsolateMessageHandler isolateHandler;
+  final bool queueMode;
 }
 
 class _NoParameterProvided {
