@@ -39,10 +39,14 @@ class Parallel {
   /// }
   ///
   /// ```
-  static FutureOr<R?> run<T, R>(ParallelCallback<T, R> handler,
-      {T? entryValue}) async {
-    final completer = Completer();
-    final worker = Worker();
+  static FutureOr<R?> run<T, R>(
+    ParallelCallback<T, R> handler, {
+    T? entryValue,
+    String? debugName,
+  }) async {
+    final Completer completer = Completer();
+    final Worker worker = Worker();
+
     await worker.init(
       (data, _) {
         completer.complete(data);
@@ -50,7 +54,9 @@ class Parallel {
       },
       _isolateHandler,
       initialMessage: _ParallelRunParams<T, R>(entryValue, handler),
+      debugName: debugName,
     );
+
     return await completer.future;
   }
 
@@ -80,12 +86,18 @@ class Parallel {
   ///
   /// ```
   static FutureOr<List<R>> map<T, R>(
-      List<T> values, FutureOr<R> Function(T item) handler) async {
-    final completerList =
-        Map.fromIterables(values, values.map((e) => Completer()));
+    List<T> values,
+    FutureOr<R> Function(T item) handler, {
+    String? debugName,
+  }) async {
+    final Map<T, Completer> completerList = Map.fromIterables(
+      values,
+      values.map((e) => Completer()),
+    );
 
     for (final item in values) {
       final worker = Worker();
+
       await worker.init(
         (data, _) {
           completerList[item]?.complete(data);
@@ -93,10 +105,12 @@ class Parallel {
         },
         _isolateHandler,
         initialMessage: _ParallelMapParams(item, handler),
+        debugName: debugName,
       );
     }
 
     final result = await Future.wait(completerList.values.map((e) => e.future));
+
     return result.cast<R>();
   }
 
@@ -125,12 +139,18 @@ class Parallel {
   ///
   /// ```
   static FutureOr<void> foreach<T>(
-      List<T> values, FutureOr<void> Function(T item) handler) async {
-    final completerList =
-        Map.fromIterables(values, values.map((e) => Completer()));
+    List<T> values,
+    FutureOr<void> Function(T item) handler, {
+    String? debugName,
+  }) async {
+    final Map<T, Completer> completerList = Map.fromIterables(
+      values,
+      values.map((e) => Completer()),
+    );
 
     for (final item in values) {
       final worker = Worker();
+
       await worker.init(
         (data, _) {
           completerList[item]?.complete(null);
@@ -138,6 +158,7 @@ class Parallel {
         },
         _isolateHandler,
         initialMessage: _ParallelForeachParams(item, handler),
+        debugName: debugName,
       );
     }
 
@@ -146,7 +167,10 @@ class Parallel {
 
   /// The isolates handler for the parallel methods
   static void _isolateHandler(
-      event, SendPort mainSendPort, SendErrorFunction? sendError) async {
+    event,
+    SendPort mainSendPort,
+    SendErrorFunction? sendError,
+  ) async {
     if (event is _ParallelMapParams) {
       final result = await event.apply();
       mainSendPort.send(result);
