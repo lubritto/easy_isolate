@@ -2,11 +2,19 @@ import 'dart:async';
 import 'dart:isolate';
 
 typedef SendErrorFunction = Function(Object? data);
+
 typedef MessageHandler = Function(dynamic data);
+
 typedef MainMessageHandler = FutureOr Function(
-    dynamic data, SendPort isolateSendPort);
+  dynamic data,
+  SendPort isolateSendPort,
+);
+
 typedef IsolateMessageHandler = FutureOr Function(
-    dynamic data, SendPort mainSendPort, SendErrorFunction onSendError);
+  dynamic data,
+  SendPort mainSendPort,
+  SendErrorFunction onSendError,
+);
 
 /// An abstraction of the [Isolate] to make it easier to use without loosing
 /// the control of it's capabilities.
@@ -20,7 +28,7 @@ typedef IsolateMessageHandler = FutureOr Function(
 ///
 /// ```dart
 ///
-/// ...
+/// // ...
 /// Future myMethod() async {
 ///   final worker = Worker();
 ///   await worker.init(mainMessageHandler, isolateMessageHandler);
@@ -30,7 +38,7 @@ typedef IsolateMessageHandler = FutureOr Function(
 ///
 /// static void isolateMessageHandler(
 ///   dynamic data, SendPort mainSendPort, SendErrorFunction sendError) {}
-/// ...
+/// // ...
 ///
 /// ```
 ///
@@ -43,15 +51,16 @@ class Worker {
   /// Holds the instance of the isolate
   late Isolate _isolate;
 
-  /// Holds the instance of the main thread port for communication
-  late ReceivePort _mainReceivePort;
-
   /// Holds the instance of the isolate open port to send messages
   late SendPort _isolateSendPort;
 
+  /// Holds the instance of the main thread port for communication
+  /// The port to communicate with the main thread
+  late ReceivePort _mainReceivePort;
+
   /// The completer used to make the [init] async awaiting until receive the
   /// isolate send port from the isolate
-  final _completer = Completer();
+  final Completer<void> _completer = Completer<void>();
 
   /// Return if the worker is initialized. Can be used to validate before
   /// sending messages in the case where it's not possible to await the [init]
@@ -92,14 +101,15 @@ class Worker {
     bool queueMode = false,
     MessageHandler? errorHandler,
     MessageHandler? exitHandler,
+    String? debugName,
   }) async {
     assert(isInitialized == false);
     if (isInitialized) return;
 
-    /// The port to communicate with the main thread
-    _mainReceivePort = ReceivePort();
-    final errorPort = _initializeAndListen(errorHandler);
-    final exitPort = _initializeAndListen(exitHandler);
+    _mainReceivePort = ReceivePort(debugName == null ? '' : '${debugName}_rp');
+
+    final ReceivePort? errorPort = _initializeAndListen(errorHandler);
+    final ReceivePort? exitPort = _initializeAndListen(exitHandler);
 
     _isolate = await Isolate.spawn(
       _isolateInitializer,
@@ -111,6 +121,7 @@ class Worker {
       ),
       onError: errorPort?.sendPort,
       onExit: exitPort?.sendPort,
+      debugName: debugName,
     );
 
     /// Listen the main port to handle messages coming from the isolate
@@ -119,13 +130,18 @@ class Worker {
       /// the port is saved and the worker is ready to work
       if (message is SendPort) {
         _isolateSendPort = message;
+
         if (!(initialMessage is _NoParameterProvided)) {
           _isolateSendPort.send(initialMessage);
         }
+
         _completer.complete();
+
         return;
       }
+
       final handlerFuture = mainHandler(message, _isolateSendPort);
+
       if (queueMode) {
         await handlerFuture;
       }
@@ -133,6 +149,7 @@ class Worker {
       /// Waits 2 seconds to close the error and exit ports, enabling to receive
       /// the events when the worker is disposed manually.
       await Future.delayed(Duration(seconds: 2));
+
       errorPort?.close();
       exitPort?.close();
     });
@@ -157,6 +174,7 @@ class Worker {
   ///     are completed.
   void dispose({bool immediate = false}) {
     _mainReceivePort.close();
+
     _isolate.kill(
       priority: immediate ? Isolate.immediate : Isolate.beforeNextEvent,
     );
@@ -164,6 +182,7 @@ class Worker {
 
   ReceivePort? _initializeAndListen(MessageHandler? handler) {
     if (handler == null) return null;
+
     return ReceivePort()..listen(handler);
   }
 
@@ -173,6 +192,7 @@ class Worker {
   /// the [isInitialized] or awaiting the [init]
   void sendMessage(Object? message) {
     if (!isInitialized) throw Exception('Worker is not initialized');
+
     _isolateSendPort.send(message);
   }
 
@@ -182,7 +202,7 @@ class Worker {
     _IsolateInitializerParams params,
   ) async {
     /// Create the port to communicate with the isolate
-    var isolateReceiverPort = ReceivePort();
+    final ReceivePort isolateReceiverPort = ReceivePort();
 
     /// Send the isolate port to the main thread using the port in the params
     params.mainSendPort.send(isolateReceiverPort.sendPort);
@@ -190,7 +210,11 @@ class Worker {
     /// Listen the isolate port to handle messages coming from the main
     await for (var data in isolateReceiverPort) {
       final handlerFuture = params.isolateHandler(
-          data, params.mainSendPort, params.errorSendPort?.send ?? (_) {});
+        data,
+        params.mainSendPort,
+        params.errorSendPort?.send ?? (_) {},
+      );
+
       if (params.queueMode) {
         await handlerFuture;
       }
