@@ -1,3 +1,7 @@
+## 1.3.1
+
+* Update dart constraints to `>=2.12.0 <4.0.0`
+ 
 ## 1.3.0
 
 * Add a queueMode to the worker
