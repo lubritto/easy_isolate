@@ -63,7 +63,7 @@ class _FileDownloaderScreenState extends State<FileDownloaderScreen> {
           SizedBox(height: 20),
           Text(
             'File downloader simulation',
-            style: theme.textTheme.headline5,
+            style: theme.textTheme.titleMedium,
           ),
           SizedBox(height: 20),
           Expanded(
