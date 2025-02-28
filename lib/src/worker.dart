@@ -2,11 +2,19 @@ import 'dart:async';
 import 'dart:isolate';
 
 typedef SendErrorFunction = Function(Object? data);
+
 typedef MessageHandler = Function(dynamic data);
+
 typedef MainMessageHandler = FutureOr Function(
-    dynamic data, SendPort isolateSendPort);
+  dynamic data,
+  SendPort isolateSendPort,
+);
+
 typedef IsolateMessageHandler = FutureOr Function(
-    dynamic data, SendPort mainSendPort, SendErrorFunction onSendError);
+  dynamic data,
+  SendPort mainSendPort,
+  SendErrorFunction onSendError,
+);
 
 /// An abstraction of the [Isolate] to make it easier to use without loosing
 /// the control of it's capabilities.
@@ -51,7 +59,7 @@ class Worker {
 
   /// The completer used to make the [init] async awaiting until receive the
   /// isolate send port from the isolate
-  final _completer = Completer();
+  final _completer = Completer<void>();
 
   /// Return if the worker is initialized. Can be used to validate before
   /// sending messages in the case where it's not possible to await the [init]
@@ -190,7 +198,10 @@ class Worker {
     /// Listen the isolate port to handle messages coming from the main
     await for (var data in isolateReceiverPort) {
       final handlerFuture = params.isolateHandler(
-          data, params.mainSendPort, params.errorSendPort?.send ?? (_) {});
+        data,
+        params.mainSendPort,
+        params.errorSendPort?.send ?? (_) {},
+      );
       if (params.queueMode) {
         await handlerFuture;
       }

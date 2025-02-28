@@ -30,8 +30,10 @@ class FileDownloaderScreen extends StatefulWidget {
 }
 
 class _FileDownloaderScreenState extends State<FileDownloaderScreen> {
-  final List<DownloadItem> items =
-      List.generate(100, (index) => DownloadItem('Item ${index + 1}'));
+  final List<DownloadItem> items = List.generate(
+    100,
+    (index) => DownloadItem('Item ${index + 1}'),
+  );
 
   final Map<DownloadItem, double> itemsDownloadProgress = {};
 
@@ -59,7 +61,10 @@ class _FileDownloaderScreenState extends State<FileDownloaderScreen> {
       body: Column(
         children: [
           SizedBox(height: 20),
-          Text('File downloader simulation', style: theme.textTheme.headline5),
+          Text(
+            'File downloader simulation',
+            style: theme.textTheme.headline5,
+          ),
           SizedBox(height: 20),
           Expanded(
             child: ListView.builder(
@@ -75,7 +80,7 @@ class _FileDownloaderScreenState extends State<FileDownloaderScreen> {
                         Spacer(),
                         Text('${item.size}mb'),
                         SizedBox(width: 10),
-                        if (hasOngoingDownload(item))
+                        if (hasOngoingDownload(item)) ...[
                           SizedBox(
                             height: 20,
                             width: 20,
@@ -83,7 +88,7 @@ class _FileDownloaderScreenState extends State<FileDownloaderScreen> {
                               value: itemsDownloadProgress[item],
                             ),
                           )
-                        else ...[
+                        ] else ...[
                           IconButton(
                             icon: Icon(Icons.download),
                             onPressed: () => FileDownloaderWorker(
@@ -124,7 +129,10 @@ class DownloadItem {
 }
 
 class FileDownloaderWorker {
-  FileDownloaderWorker({required this.onNotifyProgress, required this.item});
+  FileDownloaderWorker({
+    required this.onNotifyProgress,
+    required this.item,
+  });
 
   final Function(DownloadItemProgressEvent event) onNotifyProgress;
   final DownloadItem item;
@@ -150,7 +158,10 @@ class FileDownloaderWorker {
 
   /// Handle the messages coming from the main
   static isolateMessageHandler(
-      dynamic data, SendPort mainSendPort, SendErrorFunction sendError) async {
+    dynamic data,
+    SendPort mainSendPort,
+    SendErrorFunction sendError,
+  ) async {
     if (data is DownloadItemEvent) {
       final fragmentTime = 1 / data.item.size;
       double progress = 0;
